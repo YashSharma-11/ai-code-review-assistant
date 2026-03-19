@@ -1,0 +1,15 @@
+# Environment variables — NEVER commit this
+.env
+
+# Maven
+target/
+*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Storeapplication.yml
+.env
