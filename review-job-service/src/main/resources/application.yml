@@ -13,10 +13,6 @@ spring:
       max-poll-records: 5
     listener:
       ack-mode: manual
-    datasource:
-        url: jdbc:postgresql://localhost:5432/codereview
-        username: app
-        password: password123
   data:
     redis:
       host: localhost
@@ -39,9 +35,9 @@ github:
 groq:
   api-key: ${GROQ_API_KEY}
 
+slack:
+  webhook-url: ${SLACK_WEBHOOK_URL}
+
 logging:
   level:
     "[com.aicodereview]": DEBUG
-
-slack:
-  webhook-url: ${SLACK_WEBHOOK_URL}
