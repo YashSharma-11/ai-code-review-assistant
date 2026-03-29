@@ -11,6 +11,7 @@ import com.aicodereview.review_job_service.model.PullRequestEvent;
 import com.aicodereview.review_job_service.model.ReviewChunk;
 import com.aicodereview.review_job_service.model.ReviewComment;
 import com.aicodereview.review_job_service.service.DeadLetterService;
+import com.aicodereview.review_job_service.service.QualityScoreService;
 import com.aicodereview.review_job_service.service.RedisLockService;
 import com.aicodereview.review_job_service.service.RetryService;
 import com.aicodereview.review_job_service.service.ReviewStorageService;
@@ -43,6 +44,7 @@ public class ReviewJobConsumer {
     private final ReviewStorageService storageService;
     private final ObjectMapper objectMapper;
     private final SlackNotificationService slackService;
+    private final QualityScoreService qualityScoreService;
 
     @KafkaListener(
         topics = "pr.received",
@@ -117,25 +119,27 @@ public class ReviewJobConsumer {
                 }
                 log.info("AI found {} total issues", allComments.size());
 
-                // STEP 6 — Post comments to GitHub with retry
+                // STEP 6 — Calculate quality score
+                int qualityScore = qualityScoreService.calculate(allComments);
+                log.info("Quality score: {}/100", qualityScore);
+
+                // STEP 7 — Post comments to GitHub with retry
                 retryService.executeWithRetry(() -> {
                     commentService.postReviewComments(
-                        repoFullName, prNumber, commitSha, allComments
+                        repoFullName, prNumber, commitSha, allComments, qualityScore
                     );
                     return null;
                 }, "Post GitHub comments");
 
-                // STEP 7 — Save results to database
+                // STEP 8 — Save results to database
                 long duration = System.currentTimeMillis() - startTime;
-                storageService.saveReviewResults(prEntity, allComments, duration);
-                                // STEP 8 — Send Slack notification
+                storageService.saveReviewResults(prEntity, allComments, duration, qualityScore);
+
+                // STEP 9 — Send Slack notification
                 slackService.sendReviewSummary(
-                    repoFullName,
-                    prNumber,
-                    "PR #" + prNumber,
-                    allComments,
-                    duration
+                    repoFullName, prNumber, "PR #" + prNumber, allComments, duration, qualityScore
                 );
+
                 log.info("✅ Review complete for PR {} in {}ms", prId, duration);
                 ack.acknowledge();
 

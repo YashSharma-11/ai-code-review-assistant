@@ -30,4 +30,7 @@ public class ReviewSummaryEntity {
 
     @Column(name = "ai_model")
     private String aiModel;
+
+    @Column(name = "quality_score")
+    private Integer qualityScore;
 }

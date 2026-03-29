@@ -45,7 +45,8 @@ public class ReviewStorageService {
     public void saveReviewResults(
             PullRequestEntity pr,
             List<ReviewComment> comments,
-            long durationMs) {
+            long durationMs,
+            int qualityScore) {
 
         // Save each comment
         for (ReviewComment c : comments) {
@@ -60,7 +61,7 @@ public class ReviewStorageService {
             commentRepository.save(entity);
         }
 
-        // Save summary
+        // Save summary with score
         ReviewSummaryEntity summary = new ReviewSummaryEntity();
         summary.setPrId(pr.getId());
         summary.setTotalIssues(comments.size());
@@ -72,15 +73,17 @@ public class ReviewStorageService {
             .filter(c -> "INFO".equals(c.getSeverity())).count());
         summary.setReviewDurationMs((int) durationMs);
         summary.setAiModel("groq-llama3");
+        summary.setQualityScore(qualityScore);
         summaryRepository.save(summary);
 
-        // Update PR status to completed
+        // Update PR status and score
         pr.setStatus("completed");
         pr.setReviewedAt(Instant.now());
+        pr.setQualityScore(qualityScore);
         prRepository.save(pr);
 
-        log.info("✅ Saved review results — {} comments, {}ms",
-            comments.size(), durationMs);
+        log.info("✅ Saved review results — {} comments, score: {}/100, {}ms",
+            comments.size(), qualityScore, durationMs);
     }
 
     @Transactional

@@ -25,7 +25,8 @@ public class SlackNotificationService {
             int prNumber,
             String prTitle,
             List<ReviewComment> comments,
-            long durationMs) {
+            long durationMs,
+            int qualityScore) {
 
         long critical = comments.stream()
             .filter(c -> "CRITICAL".equals(c.getSeverity())).count();
@@ -35,10 +36,14 @@ public class SlackNotificationService {
             .filter(c -> "INFO".equals(c.getSeverity())).count();
 
         String prUrl = "https://github.com/" + repoFullName + "/pull/" + prNumber;
+        String scoreEmoji = qualityScore >= 90 ? "✅" :
+                            qualityScore >= 75 ? "👍" :
+                            qualityScore >= 60 ? "⚠️" : "❌";
 
         String message = buildSlackMessage(
             repoFullName, prNumber, prUrl,
-            comments.size(), critical, warning, info, durationMs
+            comments.size(), critical, warning, info,
+            durationMs, qualityScore, scoreEmoji
         );
 
         HttpHeaders headers = new HttpHeaders();
@@ -82,7 +87,7 @@ public class SlackNotificationService {
     private String buildSlackMessage(
             String repoFullName, int prNumber, String prUrl,
             int total, long critical, long warning, long info,
-            long durationMs) {
+            long durationMs, int qualityScore, String scoreEmoji) {
 
         String statusEmoji = critical > 0 ? "🔴" : warning > 0 ? "⚠️" : "✅";
 
@@ -108,6 +113,13 @@ public class SlackNotificationService {
                                 "text": "*Pull Request:*\\n<%s|PR #%d>"
                             }
                         ]
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*Quality Score:* %s *%d/100*"
+                        }
                     },
                     {
                         "type": "section",
@@ -145,6 +157,7 @@ public class SlackNotificationService {
                 statusEmoji,
                 repoFullName,
                 prUrl, prNumber,
+                scoreEmoji, qualityScore,
                 critical, warning, info, total,
                 durationMs
             );

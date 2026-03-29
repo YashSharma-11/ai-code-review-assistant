@@ -43,4 +43,6 @@ public class PullRequestEntity {
         this.openedAt = Instant.now();
         if (this.status == null) this.status = "pending";
     }
+    @Column(name = "quality_score")
+    private Integer qualityScore;
 }

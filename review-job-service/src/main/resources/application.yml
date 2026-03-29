@@ -40,4 +40,4 @@ slack:
 
 logging:
   level:
-    "[com.aicodereview]": DEBUG
+    "[com.aicodereview]": DEBUG 

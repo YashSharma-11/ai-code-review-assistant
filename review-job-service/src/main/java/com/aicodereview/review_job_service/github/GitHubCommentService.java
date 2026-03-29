@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.http.HttpHeaders;
+
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +23,8 @@ public class GitHubCommentService {
             String repoFullName,
             int prNumber,
             String commitSha,
-            List<ReviewComment> comments) {
+            List<ReviewComment> comments,
+            int qualityScore) {
 
         if (comments.isEmpty()) {
             log.info("No issues found — posting LGTM comment");
@@ -33,16 +34,23 @@ public class GitHubCommentService {
 
         // Post as a general PR comment instead of inline
         // to avoid line resolution issues
-        postSummaryComment(repoFullName, prNumber, comments);
+        postSummaryComment(repoFullName, prNumber, comments, qualityScore);
     }
 
     private void postSummaryComment(String repoFullName, int prNumber,
-            List<ReviewComment> comments) {
+        List<ReviewComment> comments, int qualityScore) {
 
         String url = "https://api.github.com/repos/" + repoFullName
                 + "/issues/" + prNumber + "/comments";
 
+        String scoreEmoji = qualityScore >= 90 ? "✅" :
+                            qualityScore >= 75 ? "👍" :
+                            qualityScore >= 60 ? "⚠️" : "❌";
+
         StringBuilder body = new StringBuilder();
+        body.append("## 🤖 AI Code Review\n\n");
+        body.append("### Score: ").append(scoreEmoji)
+            .append(" **").append(qualityScore).append("/100**\n\n");
         body.append(buildSummary(comments)).append("\n\n");
         body.append("### Detailed Issues\n\n");
 
@@ -53,7 +61,8 @@ public class GitHubCommentService {
                 default         -> "💡";
             };
             body.append(emoji).append(" **").append(c.getCategory()).append("**");
-            body.append(" — `").append(c.getFile()).append("` line ").append(c.getLine()).append("\n");
+            body.append(" — `").append(c.getFile()).append("` line ")
+                .append(c.getLine()).append("\n");
             body.append("> ").append(c.getComment()).append("\n\n");
 
             if (c.getSuggestion() != null && !c.getSuggestion().isBlank()) {
@@ -69,12 +78,13 @@ public class GitHubCommentService {
                 new HttpEntity<>(requestBody, buildHeaders()),
                 String.class
             );
-            log.info("✅ Posted review summary with {} issues on PR #{}", 
+            log.info("✅ Posted review summary with {} issues on PR #{}",
                 comments.size(), prNumber);
         } catch (Exception e) {
             log.error("Failed to post summary comment: {}", e.getMessage());
         }
     }
+
     private void postLgtmComment(String repoFullName, int prNumber) {
         String url = "https://api.github.com/repos/" + repoFullName
                 + "/issues/" + prNumber + "/comments";
